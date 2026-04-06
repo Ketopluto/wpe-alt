@@ -3,14 +3,14 @@
 #include <QGuiApplication>
 #include <algorithm>
 
-WallpaperEngine::WallpaperEngine(QObject* parent) 
+WallpaperEngine::WallpaperEngine(QObject* parent)
     : QObject(parent), m_targetFps(30), m_paused(false) {
     m_window = new QWindow();
     m_window->setSurfaceType(QSurface::RasterSurface);
     m_window->setFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::WindowStaysOnBottomHint);
-    
+
     m_platform = PlatformUtils::create();
-    
+
     m_timer = new QTimer(this);
     m_timer->setTimerType(Qt::PreciseTimer);
     connect(m_timer, &QTimer::timeout, [this]() {
@@ -47,17 +47,17 @@ void WallpaperEngine::start() {
     QRect geom = screen->virtualGeometry();
     m_window->setGeometry(geom);
     m_window->show();
-    
+
     m_platform->setToWallpaper(m_window);
     m_platform->setIgnoreInput(m_window);
     m_window->setGeometry(0, 0, geom.width(), geom.height());
-    
+
     if (m_renderer) {
         m_renderer->init(m_window);
         m_renderer->resize(m_window->width(), m_window->height());
         m_renderer->setPaused(m_paused);
     }
-    
+
     applyTimerInterval();
     m_timer->start();
     m_running = true;

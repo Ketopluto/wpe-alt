@@ -326,14 +326,14 @@ void VideoRenderer::render() {
     m_backingStore->beginPaint(QRect(QPoint(0,0), m_window->size()));
     QPaintDevice* device = m_backingStore->paintDevice();
     QPainter painter(device);
-    
+
     QImage image(m_rgbData[0], m_outWidth, m_outHeight, m_rgbLinesize[0], QImage::Format_ARGB32);
     renderFillMode(painter, image, QRect(0, 0, m_window->width(), m_window->height()));
-    
+
     painter.end();
     m_backingStore->endPaint();
     m_backingStore->flush(QRect(QPoint(0,0), m_window->size()));
-    
+
     m_frameReady = false;
 }
 

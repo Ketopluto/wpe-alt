@@ -91,7 +91,7 @@ public:
 
         QAction* quitAction = m_menu->addAction("Quit");
         connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
-        
+
         setContextMenu(m_menu);
         setToolTip("WPE-Alt");
 

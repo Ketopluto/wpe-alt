@@ -5,7 +5,6 @@ class StubUtils : public PlatformUtils {
 public:
     void setToWallpaper(QWindow* window) override {
         // Platform specific implementation needed
-        window->setLower();
     }
 
     void setIgnoreInput(QWindow* window) override {

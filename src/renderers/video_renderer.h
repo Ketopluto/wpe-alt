@@ -38,7 +38,7 @@ private:
     QString m_path;
     QWindow* m_window = nullptr;
     QBackingStore* m_backingStore = nullptr;
-    
+
     AVFormatContext* m_formatCtx = nullptr;
     AVCodecContext* m_codecCtx = nullptr;
     int m_videoStream = -1;
@@ -49,16 +49,16 @@ private:
     int m_outWidth = 0;
     int m_outHeight = 0;
     double m_frameDelayMs = 33.0;
-    
+
     QMutex m_frameMutex;
     bool m_frameReady = false;
     std::atomic_bool m_stop = false;
     QThread* m_decodeThread = nullptr;
-    
+
     std::atomic_bool m_paused = false;
     float m_volume = 1.0f;
     bool m_muted = false;
-    
+
     bool openVideo();
     void closeVideo();
     bool rebuildScaleContextLocked(int outputW, int outputH);
