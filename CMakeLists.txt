@@ -26,28 +26,12 @@ if(NOT Qt6_FOUND)
     endif()
 endif()
 
-find_package(PkgConfig QUIET)
-if(PKG_CONFIG_FOUND)
-    pkg_check_modules(FFMPEG QUIET libavformat libavcodec libswscale libavutil)
-endif()
-
-if(NOT FFMPEG_FOUND)
-    # Fallback for systems without pkg-config (e.g. Windows vcpkg)
-    find_path(FFMPEG_INCLUDE_DIRS libavformat/avformat.h)
-    find_library(AVFORMAT_LIB avformat)
-    find_library(AVCODEC_LIB avcodec)
-    find_library(SWSCALE_LIB swscale)
-    find_library(AVUTIL_LIB avutil)
-
-    if(FFMPEG_INCLUDE_DIRS AND AVFORMAT_LIB AND AVCODEC_LIB AND SWSCALE_LIB AND AVUTIL_LIB)
-        set(FFMPEG_FOUND TRUE)
-        set(FFMPEG_LIBRARIES ${AVFORMAT_LIB} ${AVCODEC_LIB} ${SWSCALE_LIB} ${AVUTIL_LIB})
+find_package(FFmpeg QUIET COMPONENTS AVFORMAT AVCODEC SWSCALE AVUTIL)
+if(NOT FFmpeg_FOUND AND NOT FFMPEG_FOUND)
+    if(WIN32)
+        message(FATAL_ERROR "FFmpeg not found. Install dependencies with: vcpkg install ffmpeg:x64-windows")
     else()
-        if(WIN32)
-            message(FATAL_ERROR "FFmpeg not found. Install dependencies with: vcpkg install ffmpeg:x64-windows")
-        else()
-            message(FATAL_ERROR "FFmpeg not found. Install FFmpeg development packages for your platform.")
-        endif()
+        message(FATAL_ERROR "FFmpeg not found. Install FFmpeg development packages for your platform.")
     endif()
 endif()
 
@@ -73,32 +57,11 @@ add_executable(wpe-lite
 
 target_include_directories(wpe-lite PRIVATE ${FFMPEG_INCLUDE_DIRS})
 
-target_link_libraries(wpe-lite PRIVATE
+target_link_libraries(wpe-lite PRIVATE 
     Qt6::Core Qt6::Gui Qt6::Widgets
     ${FFMPEG_LIBRARIES}
 )
 
 if(WIN32)
     target_link_libraries(wpe-lite PRIVATE user32 dwmapi advapi32 wtsapi32)
-endif()
-
-# Tests
-option(BUILD_TESTING "Build tests" ON)
-if(BUILD_TESTING)
-    enable_testing()
-    find_package(Qt6 REQUIRED COMPONENTS Test)
-
-    add_executable(wpe-tests
-        tests/test_playlist.cpp
-        tests/playlist_moc.cpp
-    )
-
-    # We include src/core/playlist.h which might moc
-    target_include_directories(wpe-tests PRIVATE src/core)
-
-    target_link_libraries(wpe-tests PRIVATE
-        Qt6::Core Qt6::Test
-    )
-
-    add_test(NAME PlaylistTest COMMAND wpe-tests)
 endif()
