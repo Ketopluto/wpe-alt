@@ -2,6 +2,10 @@
 #include <QScreen>
 #include <QGuiApplication>
 #include <algorithm>
+#ifdef Q_OS_WIN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 WallpaperEngine::WallpaperEngine(QObject* parent) 
     : QObject(parent), m_targetFps(30), m_paused(false) {
@@ -34,6 +38,9 @@ WallpaperEngine::WallpaperEngine(QObject* parent)
 WallpaperEngine::~WallpaperEngine() {
     m_timer->stop();
     m_renderer.reset();
+    if (m_platform) {
+        m_platform->restoreDesktop();
+    }
     delete m_window;
     delete m_platform;
 }
@@ -50,11 +57,26 @@ void WallpaperEngine::start() {
     
     m_platform->setToWallpaper(m_window);
     m_platform->setIgnoreInput(m_window);
-    m_window->setGeometry(0, 0, geom.width(), geom.height());
-    
+
+    // After embedding, query native pixel size (bypasses Qt DPI scaling).
+    // SetWindowPos in setToWallpaper sets the native size, but Qt's QWindow
+    // may report a smaller DPI-scaled value. The renderer needs native pixels.
+    int nativeW = m_window->width();
+    int nativeH = m_window->height();
+#ifdef Q_OS_WIN
+    {
+        HWND hwnd = (HWND)m_window->winId();
+        RECT rc = {};
+        if (GetClientRect(hwnd, &rc)) {
+            nativeW = rc.right - rc.left;
+            nativeH = rc.bottom - rc.top;
+        }
+    }
+#endif
+
     if (m_renderer) {
         m_renderer->init(m_window);
-        m_renderer->resize(m_window->width(), m_window->height());
+        m_renderer->resize(nativeW, nativeH);
         m_renderer->setPaused(m_paused);
     }
     
@@ -69,6 +91,9 @@ void WallpaperEngine::stop() {
         m_renderer->setPaused(true);
     }
     m_window->hide();
+    if (m_platform) {
+        m_platform->restoreDesktop();
+    }
     m_running = false;
 }
 

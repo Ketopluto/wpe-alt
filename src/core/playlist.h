@@ -51,6 +51,23 @@ public:
         emit currentChanged(current());
     }
 
+    bool setCurrentItem(const QString& path) {
+        if (m_items.isEmpty()) return false;
+
+        const int itemIndex = m_items.indexOf(path);
+        if (itemIndex < 0) return false;
+
+        if (m_mode == Shuffle && !m_shuffledIndices.isEmpty()) {
+            const int shuffledIndex = m_shuffledIndices.indexOf(itemIndex);
+            m_index = shuffledIndex >= 0 ? shuffledIndex : itemIndex;
+        } else {
+            m_index = itemIndex;
+        }
+
+        emit currentChanged(current());
+        return true;
+    }
+
     Mode mode() const { return m_mode; }
 
     void setMode(Mode mode) {
@@ -99,7 +116,7 @@ public:
             raw = settings.value("image/path").toString();
         }
         QStringList items;
-        const auto entries = raw.split(QRegularExpression("[;|,]"), Qt::SkipEmptyParts);
+        const auto entries = raw.split(QRegularExpression("[;,|]"), Qt::SkipEmptyParts);
         for (const QString& e : entries) {
             QString trimmed = e.trimmed();
             if (!trimmed.isEmpty()) items << trimmed;

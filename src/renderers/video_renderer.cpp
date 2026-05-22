@@ -39,6 +39,14 @@ VideoRenderer::~VideoRenderer() {
 }
 
 void VideoRenderer::init(QWindow* window) {
+    m_stop = true;
+    if (m_decodeThread) {
+        m_decodeThread->wait();
+        delete m_decodeThread;
+        m_decodeThread = nullptr;
+    }
+    closeVideo();
+
     m_window = window;
     delete m_backingStore;
     m_backingStore = new QBackingStore(window);
@@ -323,16 +331,17 @@ void VideoRenderer::render() {
         return;
     }
 
-    m_backingStore->beginPaint(QRect(QPoint(0,0), m_window->size()));
+    const QSize paintSize(m_outWidth, m_outHeight);
+    m_backingStore->beginPaint(QRect(QPoint(0,0), paintSize));
     QPaintDevice* device = m_backingStore->paintDevice();
     QPainter painter(device);
     
-    QImage image(m_rgbData[0], m_outWidth, m_outHeight, m_rgbLinesize[0], QImage::Format_ARGB32);
-    renderFillMode(painter, image, QRect(0, 0, m_window->width(), m_window->height()));
+    QImage image(m_rgbData[0], m_outWidth, m_outHeight, m_rgbLinesize[0], QImage::Format_RGB32);
+    renderFillMode(painter, image, QRect(0, 0, m_outWidth, m_outHeight));
     
     painter.end();
     m_backingStore->endPaint();
-    m_backingStore->flush(QRect(QPoint(0,0), m_window->size()));
+    m_backingStore->flush(QRect(QPoint(0,0), paintSize));
     
     m_frameReady = false;
 }

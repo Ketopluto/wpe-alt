@@ -1,5 +1,7 @@
 #include <QtTest>
 #include <QSignalSpy>
+#include <QSettings>
+#include <QTemporaryDir>
 #include "../src/core/playlist.h"
 #include "moc_playlist.cpp"
 
@@ -62,12 +64,9 @@ private slots:
         QCOMPARE(playlist.mode(), Playlist::Shuffle);
         QVERIFY(!playlist.current().isEmpty());
 
-        QString first = playlist.current();
         playlist.next();
-        QString second = playlist.current();
 
-        // They should likely be different (unless shuffle happened to match same index which shouldn't happen sequentially)
-        // Let's just ensure we can advance through all items without crashing
+        // Let's just ensure we can advance through all items without crashing.
         for (int i = 0; i < 10; ++i) {
             playlist.next();
             QVERIFY(!playlist.current().isEmpty());
@@ -89,6 +88,39 @@ private slots:
 
         // Current index should adjust or stay valid
         QCOMPARE(playlist.current(), QString("item2"));
+    }
+
+    void testSemicolonSeparatedSettings()
+    {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+
+        const QString iniPath = tempDir.filePath("wallpaper.ini");
+
+        {
+            QSettings settings(iniPath, QSettings::IniFormat);
+            settings.setValue("media/items", "item1.mp4;item2.png");
+            settings.sync();
+
+            Playlist playlist;
+            playlist.loadFromSettings(settings);
+            QCOMPARE(playlist.items(), QStringList({"item1.mp4", "item2.png"}));
+        }
+
+        {
+            Playlist saved;
+            saved.setItems({"loop1.mp4", "loop2.gif"});
+
+            QSettings settings(iniPath, QSettings::IniFormat);
+            saved.saveToSettings(settings);
+        }
+
+        {
+            Playlist reloaded;
+            QSettings settings(iniPath, QSettings::IniFormat);
+            reloaded.loadFromSettings(settings);
+            QCOMPARE(reloaded.items(), QStringList({"loop1.mp4", "loop2.gif"}));
+        }
     }
 };
 

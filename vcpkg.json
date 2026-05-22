@@ -1,0 +1,8 @@
+{
+  "name": "wpe-alt",
+  "version": "1.0.0",
+  "dependencies": [
+    "qtbase",
+    "ffmpeg"
+  ]
+}

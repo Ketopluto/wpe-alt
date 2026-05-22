@@ -7,6 +7,7 @@ public:
     virtual ~PlatformUtils() = default;
     virtual void setToWallpaper(QWindow* window) = 0;
     virtual void setIgnoreInput(QWindow* window) = 0;
+    virtual void restoreDesktop() {}
     
     static PlatformUtils* create();
 };

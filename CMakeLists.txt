@@ -55,6 +55,10 @@ add_executable(wpe-lite
     src/gui/wallpaper_gallery.h
 )
 
+target_sources(wpe-lite PRIVATE
+    resources/app_icon.qrc
+)
+
 target_include_directories(wpe-lite PRIVATE ${FFMPEG_INCLUDE_DIRS})
 
 target_link_libraries(wpe-lite PRIVATE 
@@ -63,5 +67,32 @@ target_link_libraries(wpe-lite PRIVATE
 )
 
 if(WIN32)
+    set_target_properties(wpe-lite PROPERTIES
+        OUTPUT_NAME "WPE-Alt"
+        WIN32_EXECUTABLE TRUE
+    )
+
+    target_sources(wpe-lite PRIVATE
+        resources/app_icon.rc
+    )
+
     target_link_libraries(wpe-lite PRIVATE user32 dwmapi advapi32 wtsapi32)
+
+    qt_generate_deploy_app_script(
+        TARGET wpe-lite
+        OUTPUT_SCRIPT wpe_alt_deploy_script
+        NO_TRANSLATIONS
+    )
+
+    add_custom_command(TARGET wpe-lite POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            "-DQT_DEPLOY_PREFIX=$<TARGET_FILE_DIR:wpe-lite>"
+            "-DCMAKE_INSTALL_PREFIX=$<TARGET_FILE_DIR:wpe-lite>"
+            "-DQT_DEPLOY_BIN_DIR=."
+            "-DQT_DEPLOY_LIB_DIR=."
+            "-DQT_DEPLOY_PLUGINS_DIR=."
+            -P "${wpe_alt_deploy_script}"
+        COMMENT "Deploying Qt runtime dependencies for WPE-Alt"
+        VERBATIM
+    )
 endif()

@@ -1,15 +1,18 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
 #include <QFileDialog>
 #include <QImageReader>
+#include <QIcon>
 #include <QCommandLineParser>
 #include <QMessageBox>
 #include <QStringList>
 #include <QRegularExpression>
+#include <QStyle>
 #include "core/wallpaper_engine.h"
 #include "core/playlist.h"
 #include "renderers/color_renderer.h"
@@ -44,6 +47,20 @@ bool isImageFile(const QString& path) {
 
 bool isGifFile(const QString& path) {
     return GifRenderer::canOpen(path);
+}
+
+QIcon loadAppIcon() {
+    QIcon icon(":/icons/app_icon.png");
+    if (!icon.isNull()) {
+        return icon;
+    }
+
+    icon = QIcon::fromTheme("video-display");
+    if (icon.isNull() && qApp) {
+        icon = qApp->style()->standardIcon(QStyle::SP_ComputerIcon);
+    }
+
+    return icon;
 }
 
 FillMode parseFillMode(const QString& str) {
@@ -87,7 +104,7 @@ QStringList loadMediaCandidates(QSettings& settings, const QDir& baseDir) {
     }
 
     QStringList candidates;
-    const QStringList entries = itemsValue.split(QRegularExpression("[;|,]"), Qt::SkipEmptyParts);
+    const QStringList entries = itemsValue.split(QRegularExpression("[;,|]"), Qt::SkipEmptyParts);
     for (const QString& raw : entries) {
         const QString absolute = toAbsoluteMediaPath(raw, baseDir);
         if (!absolute.isEmpty()) {
@@ -123,6 +140,10 @@ int main(int argc, char *argv[])
     app.setApplicationName("WPE-Alt");
     app.setApplicationVersion("1.0.0");
     app.setQuitOnLastWindowClosed(false);
+    const QIcon appIcon = loadAppIcon();
+    if (!appIcon.isNull()) {
+        app.setWindowIcon(appIcon);
+    }
 
     // Single instance check
     if (!SystemIntegration::tryAcquireSingleInstance()) {
@@ -203,10 +224,55 @@ int main(int argc, char *argv[])
 
     bool userPaused = false;
 
+    auto applyMediaAndRefresh = [&](const QString& mediaPath) {
+        const bool wasRunning = engine.isRunning();
+        if (wasRunning) {
+            sysIntegration.stopMonitoring();
+            engine.stop();
+        }
+
+        applyMedia(mediaPath);
+
+        if (wasRunning) {
+            engine.start();
+            sysIntegration.startMonitoring();
+        }
+    };
+
     fprintf(stderr, "[DBG] Creating tray icon...\n"); fflush(stderr);
     // Tray
     TrayIcon tray;
     fprintf(stderr, "[DBG] Tray created\n"); fflush(stderr);
+    if (!appIcon.isNull()) {
+        tray.setIcon(appIcon);
+    }
+
+    auto keepWallpaper = [&](const QString& mediaPath, bool replacePlaylist) {
+        const QString absolute = QFileInfo(mediaPath).absoluteFilePath();
+        if (absolute.isEmpty()) return;
+
+        {
+            QSignalBlocker blockPlaylist(&playlist);
+            if (replacePlaylist) {
+                playlist.setItems(QStringList{absolute});
+                playlist.setMode(Playlist::Single);
+                playlist.setCurrentIndex(0);
+            } else {
+                if (!playlist.items().contains(absolute)) {
+                    playlist.addItem(absolute);
+                }
+                playlist.setCurrentItem(absolute);
+            }
+        }
+
+        playlist.saveToSettings(settings);
+        applyMediaAndRefresh(absolute);
+        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(absolute).fileName()));
+        tray.showMessage("WPE-Alt",
+                         QString("Wallpaper applied: %1").arg(QFileInfo(absolute).fileName()),
+                         QSystemTrayIcon::Information,
+                         2500);
+    };
 
     QObject::connect(&tray, &TrayIcon::enableToggled, [&](bool enabled) {
         if (enabled) {
@@ -241,7 +307,7 @@ int main(int argc, char *argv[])
     QObject::connect(&tray, &TrayIcon::previousRequested, &playlist, &Playlist::prev);
 
     QObject::connect(&playlist, &Playlist::currentChanged, [&](const QString& path) {
-        applyMedia(path);
+        applyMediaAndRefresh(path);
         tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(path).fileName()));
     });
 
@@ -267,20 +333,15 @@ int main(int argc, char *argv[])
             return;
         }
 
-        playlist.addItem(absolute);
-        playlist.setCurrentIndex(playlist.items().indexOf(absolute));
-        playlist.saveToSettings(settings);
-        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(absolute).fileName()));
+        keepWallpaper(absolute, true);
     });
 
     QObject::connect(&tray, &TrayIcon::galleryRequested, [&]() {
         WallpaperGallery gallery(playlist.items(), playlist.current());
 
         QObject::connect(&gallery, &WallpaperGallery::wallpaperSelected, [&](const QString& path) {
-            int idx = playlist.items().indexOf(path);
-            if (idx >= 0) {
-                playlist.setCurrentIndex(idx);
-            }
+            keepWallpaper(path, false);
+            gallery.accept();
         });
 
         QObject::connect(&gallery, &WallpaperGallery::playlistModified, [&](const QStringList& paths) {
@@ -318,7 +379,7 @@ int main(int argc, char *argv[])
             playlist.setRotationInterval(settings.value("playlist/interval_sec", 0).toInt());
 
             // Re-apply current wallpaper with new settings
-            applyMedia(playlist.current());
+            applyMediaAndRefresh(playlist.current());
 
             tray.setMutedState(muted);
             tray.setVolumeState(static_cast<int>(volume * 100));
