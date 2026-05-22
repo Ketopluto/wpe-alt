@@ -47,7 +47,7 @@ jobs:
     - name: Deploy Qt DLLs
       run: |
         # Use windeployqt to copy required Qt DLLs to the executable directory
-        windeployqt --release build\Release\WPE-Alt.exe
+        windeployqt --release --no-translations --no-compiler-runtime build\Release\WPE-Alt.exe
 
     - name: Copy FFmpeg DLLs
       run: |
