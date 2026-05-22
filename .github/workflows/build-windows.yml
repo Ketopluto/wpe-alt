@@ -22,7 +22,6 @@ jobs:
         host: 'windows'
         target: 'desktop'
         arch: 'win64_msvc2019_64'
-        modules: 'qtbase'
 
     - name: Restore vcpkg artifacts
       uses: actions/cache@v4
@@ -54,7 +53,7 @@ jobs:
     - name: Deploy Qt DLLs
       run: |
         # Use windeployqt to copy required Qt DLLs to the executable directory
-        windeployqt --release build\Release\wpe-lite.exe
+        windeployqt --release build\Release\WPE-Alt.exe
 
     - name: Copy FFmpeg DLLs
       run: |
