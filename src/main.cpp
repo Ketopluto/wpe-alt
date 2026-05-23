@@ -393,8 +393,8 @@ int main(int argc, char *argv[])
         engine.setPaused(userPaused || sysPaused);
     });
 
-    // Apply auto-start state from settings
-    sysIntegration.setAutoStart(settings.value("engine/auto_start", false).toBool());
+    // Note: Do not call sysIntegration.setAutoStart() on startup to avoid opening registry keys
+    // for writing immediately at launch, which triggers suspicious behavior flags in EDRs.
 
     tray.setPausedState(false);
     tray.setMutedState(muted);
