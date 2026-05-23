@@ -44,28 +44,9 @@ public:
         // Set wallpaper to empty (solid color background — will be black)
         SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, (PVOID)L"", SPIF_SENDCHANGE);
 
-        // Find desktop icon list view and make its background transparent
-        HWND progman = FindWindowW(L"Progman", nullptr);
-        if (progman) {
-            HWND defView = FindWindowExW(progman, nullptr, L"SHELLDLL_DefView", nullptr);
-            if (!defView) {
-                // DefView might be in a top-level WorkerW on some setups
-                for (HWND w = FindWindowExW(nullptr, nullptr, L"WorkerW", nullptr);
-                     w; w = FindWindowExW(nullptr, w, L"WorkerW", nullptr)) {
-                    defView = FindWindowExW(w, nullptr, L"SHELLDLL_DefView", nullptr);
-                    if (defView) break;
-                }
-            }
-            if (defView) {
-                HWND listView = FindWindowExW(defView, nullptr, L"SysListView32", nullptr);
-                if (listView) {
-                    SendMessageW(listView, LVM_SETBKCOLOR, 0, (LPARAM)CLR_NONE);
-                    SendMessageW(listView, LVM_SETTEXTBKCOLOR, 0, (LPARAM)CLR_NONE);
-                    InvalidateRect(listView, nullptr, TRUE);
-                    m_listView = listView;
-                }
-            }
-        }
+        // Note: We do NOT send cross-process messages (LVM_SETBKCOLOR) to the desktop ListView here.
+        // Modern Windows 10/11 already renders desktop icon text backgrounds transparently by default.
+        // Avoiding cross-process SendMessageW calls completely prevents EDR (SentinelOne) process-tampering flags.
 
         // Keep as top-level window — do NOT parent to any desktop window.
         // Remove window decorations.
@@ -105,12 +86,7 @@ public:
             m_savedWallpaper.clear();
         }
 
-        // Restore list view background
-        if (m_listView && IsWindow(m_listView)) {
-            SendMessageW(m_listView, LVM_SETBKCOLOR, 0, (LPARAM)GetSysColor(COLOR_DESKTOP));
-            SendMessageW(m_listView, LVM_SETTEXTBKCOLOR, 0, (LPARAM)GetSysColor(COLOR_DESKTOP));
-            InvalidateRect(m_listView, nullptr, TRUE);
-        }
+        // No list view restoration needed since we avoided cross-process modifications
         m_listView = nullptr;
     }
 
