@@ -11,7 +11,7 @@ WallpaperEngine::WallpaperEngine(QObject* parent)
     : QObject(parent), m_targetFps(30), m_paused(false) {
     m_window = new QWindow();
     m_window->setSurfaceType(QSurface::RasterSurface);
-    m_window->setFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::WindowStaysOnBottomHint);
+    m_window->setFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::WindowStaysOnBottomHint | Qt::WindowDoesNotAcceptFocus | Qt::WindowTransparentForInput);
     
     m_platform = PlatformUtils::create();
     

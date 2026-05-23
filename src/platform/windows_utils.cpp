@@ -69,7 +69,7 @@ public:
         int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
         int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
         int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-        int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        int h = GetSystemMetrics(SM_CYVIRTUALSCREEN) - 1; // 1px shorter to prevent DWM Fullscreen Exclusive mode
 
         // Place at BOTTOM of all windows — behind desktop icons,
         // on top of the now-black system wallpaper.
