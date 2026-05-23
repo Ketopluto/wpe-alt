@@ -57,16 +57,23 @@ public:
 
         LONG_PTR exStyle = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         exStyle &= ~(WS_EX_APPWINDOW);
-        exStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+        // Add WS_EX_LAYERED to prevent DWM from treating this as a Fullscreen Exclusive app,
+        // which fixes the bug where the Taskbar and Rainmeter widgets disappear.
+        exStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED;
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exStyle);
 
-        // Full screen size
-        int w = GetSystemMetrics(SM_CXSCREEN);
-        int h = GetSystemMetrics(SM_CYSCREEN);
+        // Set opacity to 255 (fully opaque) so the layered window is visible
+        SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
+
+        // Full virtual screen size (Extend Mode Option B: span all monitors)
+        int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
         // Place at BOTTOM of all windows — behind desktop icons,
         // on top of the now-black system wallpaper.
-        SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, w, h,
+        SetWindowPos(hwnd, HWND_BOTTOM, x, y, w, h,
                      SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED);
         ShowWindow(hwnd, SW_SHOWNOACTIVATE);
     }
