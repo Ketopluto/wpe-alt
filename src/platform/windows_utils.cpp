@@ -48,32 +48,60 @@ public:
         // Modern Windows 10/11 already renders desktop icon text backgrounds transparently by default.
         // Avoiding cross-process SendMessageW calls completely prevents EDR (SentinelOne) process-tampering flags.
 
-        // Keep as top-level window — do NOT parent to any desktop window.
-        // Remove window decorations.
+        // 1. Trigger the desktop composition to expose the WorkerW/Progman hierarchy
+        HWND progman = FindWindowW(L"Progman", nullptr);
+        if (progman) {
+            SendMessageTimeoutW(progman, 0x052C, 0, 0, SMTO_NORMAL, 1000, nullptr);
+        }
+
+        // 2. Locate SHELLDLL_DefView (contains desktop icons) and its parent
+        HWND shell_def_view = FindWindowExW(progman, nullptr, L"SHELLDLL_DefView", nullptr);
+        HWND desktop_parent = progman;
+
+        if (!shell_def_view) {
+            EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
+                HWND def = FindWindowExW(hwnd, nullptr, L"SHELLDLL_DefView", nullptr);
+                if (def) {
+                    HWND* result = (HWND*)lParam;
+                    *result = def;
+                    return FALSE; // Stop enumeration
+                }
+                return TRUE;
+            }, (LPARAM)&shell_def_view);
+        }
+
+        if (shell_def_view) {
+            desktop_parent = GetParent(shell_def_view);
+        }
+
+        // Transform into a child window to natively inject into the desktop hierarchy
         LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-        style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
-        style |= WS_POPUP | WS_VISIBLE;
+        style &= ~(WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
+        style |= WS_CHILD | WS_VISIBLE;
         SetWindowLongPtrW(hwnd, GWL_STYLE, style);
 
         LONG_PTR exStyle = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         exStyle &= ~(WS_EX_APPWINDOW);
-        // Add WS_EX_LAYERED to prevent DWM from treating this as a Fullscreen Exclusive app,
-        // which fixes the bug where the Taskbar and Rainmeter widgets disappear.
         exStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED;
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exStyle);
 
         // Set opacity to 255 (fully opaque) so the layered window is visible
         SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
 
+        // Inject into the desktop parent
+        if (desktop_parent) {
+            SetParent(hwnd, desktop_parent);
+        }
+
         // Full virtual screen size (Extend Mode Option B: span all monitors)
         int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
         int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
         int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-        int h = GetSystemMetrics(SM_CYVIRTUALSCREEN) - 1; // 1px shorter to prevent DWM Fullscreen Exclusive mode
+        int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
-        // Place at BOTTOM of all windows — behind desktop icons,
-        // on top of the now-black system wallpaper.
-        SetWindowPos(hwnd, HWND_BOTTOM, x, y, w, h,
+        // Place our window explicitly behind SHELLDLL_DefView in the Z-order
+        HWND insertAfter = shell_def_view ? shell_def_view : HWND_BOTTOM;
+        SetWindowPos(hwnd, insertAfter, x, y, w, h,
                      SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED);
         ShowWindow(hwnd, SW_SHOWNOACTIVATE);
     }
