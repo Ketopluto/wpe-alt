@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QRegularExpression>
 #include <QStyle>
+#include <QPointer>
 #include "core/wallpaper_engine.h"
 #include "core/playlist.h"
 #include "renderers/color_renderer.h"
@@ -20,10 +21,9 @@
 #include "renderers/video_renderer.h"
 #include "renderers/gif_renderer.h"
 #include "gui/tray_icon.h"
-#include "gui/settings_dialog.h"
-#include "gui/wallpaper_gallery.h"
+#include "gui/dashboard_window.h"
 #include "platform/system_integration.h"
-
+#include "gui/first_run_wizard.h"
 namespace {
 
 QString toAbsoluteMediaPath(const QString& input, const QDir& baseDir) {
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     fprintf(stderr, "[DBG] QApplication created\n"); fflush(stderr);
 
-    app.setApplicationName("WPE-Alt");
+    app.setApplicationName("Wallpaper Studio");
     app.setApplicationVersion("1.0.0");
     app.setQuitOnLastWindowClosed(false);
     const QIcon appIcon = loadAppIcon();
@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
     // Single instance check
     if (!SystemIntegration::tryAcquireSingleInstance()) {
         fprintf(stderr, "[DBG] Single instance check FAILED — exiting\n"); fflush(stderr);
-        QMessageBox::information(nullptr, "WPE-Alt",
-            "WPE-Alt is already running. Check the system tray.");
+        QMessageBox::information(nullptr, "Wallpaper Studio",
+            "Wallpaper Studio is already running. Check the system tray.");
         return 0;
     }
     fprintf(stderr, "[DBG] Single instance OK\n"); fflush(stderr);
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
 
     // Command line
     QCommandLineParser parser;
-    parser.setApplicationDescription("WPE-Alt — Open-source Wallpaper Engine alternative");
+    parser.setApplicationDescription("Wallpaper Studio — Open-source Wallpaper Engine alternative");
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addOption({{"c", "config"}, "Path to wallpaper.ini", "path"});
@@ -174,6 +174,14 @@ int main(int argc, char *argv[])
     const QDir baseDir = iniInfo.absoluteDir();
 
     fprintf(stderr, "[DBG] Config loaded from: %s\n", qPrintable(iniPath)); fflush(stderr);
+
+    // First Run Wizard
+    if (!settings.value("first_run_completed", false).toBool()) {
+        FirstRunWizard wizard;
+        wizard.exec();
+        settings.setValue("first_run_completed", true);
+        settings.sync();
+    }
 
     // Engine settings
     FillMode fillMode = parseFillMode(settings.value("engine/fill_mode", "fill").toString());
@@ -200,16 +208,38 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "[DBG] Playlist ready, %d items\n", playlist.count()); fflush(stderr);
 
-    // Engine
-    fprintf(stderr, "[DBG] Creating WallpaperEngine...\n"); fflush(stderr);
-    WallpaperEngine engine;
-    engine.setTargetFps(settings.value("engine/fps", 30).toInt());
+    // Engines
+    fprintf(stderr, "[DBG] Creating WallpaperEngines...\n"); fflush(stderr);
+    QList<WallpaperEngine*> engines;
+
+    auto createEngines = [&]() {
+        for (auto* e : engines) { e->stop(); e->deleteLater(); }
+        engines.clear();
+
+        QString mmMode = settings.value("engine/multi_monitor_mode", "span").toString();
+        if (mmMode == "span") {
+            engines.append(new WallpaperEngine(nullptr, &app));
+        } else {
+            for (auto* screen : QGuiApplication::screens()) {
+                engines.append(new WallpaperEngine(screen, &app));
+            }
+        }
+
+        int targetFps = settings.value("engine/fps", 30).toInt();
+        for (auto* e : engines) {
+            e->setTargetFps(targetFps);
+        }
+    };
+
+    createEngines();
 
     auto applyMedia = [&](const QString& mediaPath) {
-        WallpaperRenderer* renderer = createRendererForPath(mediaPath, fillMode, &engine);
-        renderer->setVolume(volume);
-        renderer->setMuted(muted);
-        engine.setRenderer(renderer);
+        for (auto* engine : engines) {
+            WallpaperRenderer* renderer = createRendererForPath(mediaPath, fillMode, engine);
+            renderer->setVolume(volume);
+            renderer->setMuted(muted);
+            engine->setRenderer(renderer);
+        }
     };
 
     // Set initial wallpaper
@@ -225,16 +255,18 @@ int main(int argc, char *argv[])
     bool userPaused = false;
 
     auto applyMediaAndRefresh = [&](const QString& mediaPath) {
-        const bool wasRunning = engine.isRunning();
+        bool wasRunning = false;
+        if (!engines.isEmpty()) wasRunning = engines.first()->isRunning();
+        
         if (wasRunning) {
             sysIntegration.stopMonitoring();
-            engine.stop();
+            for (auto* e : engines) e->stop();
         }
 
         applyMedia(mediaPath);
 
         if (wasRunning) {
-            engine.start();
+            for (auto* e : engines) e->start();
             sysIntegration.startMonitoring();
         }
     };
@@ -267,8 +299,8 @@ int main(int argc, char *argv[])
 
         playlist.saveToSettings(settings);
         applyMediaAndRefresh(absolute);
-        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(absolute).fileName()));
-        tray.showMessage("WPE-Alt",
+        tray.setToolTip(QString("Wallpaper Studio\n%1").arg(QFileInfo(absolute).fileName()));
+        tray.showMessage("Wallpaper Studio",
                          QString("Wallpaper applied: %1").arg(QFileInfo(absolute).fileName()),
                          QSystemTrayIcon::Information,
                          2500);
@@ -276,17 +308,17 @@ int main(int argc, char *argv[])
 
     QObject::connect(&tray, &TrayIcon::enableToggled, [&](bool enabled) {
         if (enabled) {
-            engine.start();
+            for (auto* e : engines) e->start();
             sysIntegration.startMonitoring();
         } else {
             sysIntegration.stopMonitoring();
-            engine.stop();
+            for (auto* e : engines) e->stop();
         }
     });
 
     QObject::connect(&tray, &TrayIcon::pauseToggled, [&](bool paused) {
         userPaused = paused;
-        engine.setPaused(paused || sysIntegration.isPausedBySystem());
+        for (auto* e : engines) e->setPaused(paused || sysIntegration.isPausedBySystem());
     });
 
     QObject::connect(&tray, &TrayIcon::muteToggled, [&](bool m) {
@@ -308,7 +340,7 @@ int main(int argc, char *argv[])
 
     QObject::connect(&playlist, &Playlist::currentChanged, [&](const QString& path) {
         applyMediaAndRefresh(path);
-        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(path).fileName()));
+        tray.setToolTip(QString("Wallpaper Studio\n%1").arg(QFileInfo(path).fileName()));
     });
 
     QObject::connect(&tray, &TrayIcon::mediaSelectionRequested, [&]() {
@@ -337,27 +369,44 @@ int main(int argc, char *argv[])
     });
 
     QObject::connect(&tray, &TrayIcon::galleryRequested, [&]() {
-        WallpaperGallery gallery(playlist.items(), playlist.current());
-
-        QObject::connect(&gallery, &WallpaperGallery::wallpaperSelected, [&](const QString& path) {
-            keepWallpaper(path, false);
-            gallery.accept();
-        });
-
-        QObject::connect(&gallery, &WallpaperGallery::playlistModified, [&](const QStringList& paths) {
-            playlist.setItems(paths);
-            playlist.saveToSettings(settings);
-        });
-
-        gallery.exec();
+        emit tray.settingsRequested();
     });
 
+    QPointer<DashboardWindow> dashboard;
     QObject::connect(&tray, &TrayIcon::settingsRequested, [&]() {
-        SettingsDialog dlg(&settings);
+        if (dashboard) {
+            dashboard->raise();
+            dashboard->activateWindow();
+            return;
+        }
 
-        QObject::connect(&dlg, &SettingsDialog::settingsChanged, [&]() {
+        dashboard = new DashboardWindow(&settings);
+        dashboard->setAttribute(Qt::WA_DeleteOnClose);
+
+        QObject::connect(dashboard.data(), &DashboardWindow::wallpaperSelected, [&](const QString& path) {
+            keepWallpaper(path, false);
+        });
+
+        QObject::connect(dashboard.data(), &DashboardWindow::settingsChanged, [&]() {
             // Re-read settings
-            engine.setTargetFps(settings.value("engine/fps", 30).toInt());
+            QString newMmMode = settings.value("engine/multi_monitor_mode", "span").toString();
+            if (newMmMode != (engines.size() == 1 ? "span" : "per_monitor")) {
+                bool wasRunning = !engines.isEmpty() && engines.first()->isRunning();
+                if (wasRunning) {
+                    sysIntegration.stopMonitoring();
+                    for (auto* e : engines) e->stop();
+                }
+                createEngines();
+                applyMedia(playlist.current());
+                if (wasRunning) {
+                    for (auto* e : engines) e->start();
+                    sysIntegration.startMonitoring();
+                }
+            } else {
+                int targetFps = settings.value("engine/fps", 30).toInt();
+                for (auto* e : engines) e->setTargetFps(targetFps);
+            }
+
             fillMode = parseFillMode(settings.value("engine/fill_mode", "fill").toString());
             volume = settings.value("audio/volume", 100).toInt() / 100.0f;
             muted = settings.value("audio/mute", false).toBool();
@@ -385,12 +434,12 @@ int main(int argc, char *argv[])
             tray.setVolumeState(static_cast<int>(volume * 100));
         });
 
-        dlg.exec();
+        dashboard->show();
     });
 
     // System pause
     QObject::connect(&sysIntegration, &SystemIntegration::systemPauseChanged, [&](bool sysPaused) {
-        engine.setPaused(userPaused || sysPaused);
+        for (auto* e : engines) e->setPaused(userPaused || sysPaused);
     });
 
     // Note: Do not call sysIntegration.setAutoStart() on startup to avoid opening registry keys
@@ -401,11 +450,11 @@ int main(int argc, char *argv[])
     tray.setVolumeState(static_cast<int>(volume * 100));
     tray.show();
 
-    engine.start();
+    for (auto* e : engines) e->start();
     sysIntegration.startMonitoring();
 
     if (!playlist.current().isEmpty()) {
-        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(playlist.current()).fileName()));
+        tray.setToolTip(QString("Wallpaper Studio\n%1").arg(QFileInfo(playlist.current()).fileName()));
     }
 
     return app.exec();

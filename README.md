@@ -1,4 +1,4 @@
-# WPE-Alt
+# Wallpaper Studio
 
 **Open-source Wallpaper Engine alternative** — feature-complete desktop wallpaper manager for Windows.
 

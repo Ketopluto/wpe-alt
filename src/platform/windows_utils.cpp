@@ -31,7 +31,7 @@ public:
         restoreDesktop();
     }
 
-    void setToWallpaper(QWindow* window) override {
+    void setToWallpaper(QWindow* window, QRect geometry = QRect()) override {
         restoreDesktop();
 
         HWND hwnd = (HWND)window->winId();
@@ -60,11 +60,19 @@ public:
         exStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exStyle);
 
-        // Full virtual screen size (Extend Mode Option B: span all monitors)
-        int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
-        int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
-        int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-        int h = GetSystemMetrics(SM_CYVIRTUALSCREEN) - 1; // 1px shorter to prevent DWM Fullscreen Exclusive mode
+        int x, y, w, h;
+        if (geometry.isValid()) {
+            x = geometry.x();
+            y = geometry.y();
+            w = geometry.width();
+            h = geometry.height() - 1; // 1px shorter to prevent DWM Fullscreen Exclusive mode
+        } else {
+            // Full virtual screen size (Extend Mode Option B: span all monitors)
+            x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+            y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+            w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+            h = GetSystemMetrics(SM_CYVIRTUALSCREEN) - 1; 
+        }
 
         // Place at BOTTOM of all windows — behind desktop icons,
         // on top of the now-black system wallpaper.

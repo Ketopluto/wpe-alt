@@ -51,8 +51,8 @@ add_executable(wpe-lite
     src/renderers/video_renderer.cpp
     src/renderers/gif_renderer.h
     src/gui/tray_icon.h
-    src/gui/settings_dialog.h
-    src/gui/wallpaper_gallery.h
+    src/gui/dashboard_window.h
+    src/gui/dashboard_window.cpp
 )
 
 target_sources(wpe-lite PRIVATE
@@ -68,7 +68,7 @@ target_link_libraries(wpe-lite PRIVATE
 
 if(WIN32)
     set_target_properties(wpe-lite PROPERTIES
-        OUTPUT_NAME "WPE-Alt"
+        OUTPUT_NAME "WallpaperStudio"
         WIN32_EXECUTABLE TRUE
     )
 
@@ -92,7 +92,7 @@ if(WIN32)
             "-DQT_DEPLOY_LIB_DIR=."
             "-DQT_DEPLOY_PLUGINS_DIR=."
             -P "${wpe_alt_deploy_script}"
-        COMMENT "Deploying Qt runtime dependencies for WPE-Alt"
+        COMMENT "Deploying Qt runtime dependencies for Wallpaper Studio"
         VERBATIM
     )
 endif()

@@ -7,8 +7,8 @@
 #include <windows.h>
 #endif
 
-WallpaperEngine::WallpaperEngine(QObject* parent) 
-    : QObject(parent), m_targetFps(30), m_paused(false) {
+WallpaperEngine::WallpaperEngine(QScreen* screen, QObject* parent) 
+    : QObject(parent), m_targetScreen(screen), m_targetFps(30), m_paused(false) {
     m_window = new QWindow();
     m_window->setSurfaceType(QSurface::RasterSurface);
     m_window->setFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::WindowStaysOnBottomHint | Qt::WindowDoesNotAcceptFocus | Qt::WindowTransparentForInput);
@@ -46,16 +46,22 @@ WallpaperEngine::~WallpaperEngine() {
 }
 
 void WallpaperEngine::start() {
-    QScreen* screen = QGuiApplication::primaryScreen();
-    if (!screen) {
-        return;
+    QRect geom;
+    if (m_targetScreen) {
+        geom = m_targetScreen->geometry();
+    } else {
+        QScreen* primary = QGuiApplication::primaryScreen();
+        if (primary) {
+            geom = primary->virtualGeometry();
+        } else {
+            return;
+        }
     }
 
-    QRect geom = screen->virtualGeometry();
     m_window->setGeometry(geom);
     m_window->show();
     
-    m_platform->setToWallpaper(m_window);
+    m_platform->setToWallpaper(m_window, m_targetScreen ? geom : QRect());
     m_platform->setIgnoreInput(m_window);
 
     // After embedding, query native pixel size (bypasses Qt DPI scaling).

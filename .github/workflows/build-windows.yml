@@ -1,4 +1,4 @@
-name: Build WPE-Alt (Windows)
+name: Build Wallpaper Studio (Windows)
 
 on:
   push:
@@ -47,7 +47,7 @@ jobs:
     - name: Deploy Qt DLLs
       run: |
         # Use windeployqt to copy required Qt DLLs to the executable directory
-        windeployqt --release --no-translations --no-compiler-runtime build\Release\WPE-Alt.exe
+        windeployqt --release --no-translations --no-compiler-runtime build\Release\WallpaperStudio.exe
 
     - name: Copy FFmpeg DLLs
       run: |
@@ -57,5 +57,5 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: WPE-Alt-Windows
+        name: WallpaperStudio-Windows
         path: build\Release\*
