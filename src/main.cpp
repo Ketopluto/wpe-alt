@@ -22,7 +22,6 @@
 #include "renderers/gif_renderer.h"
 #include "gui/tray_icon.h"
 #include "gui/dashboard_window.h"
-#include "gui/wallpaper_gallery.h"
 #include "platform/system_integration.h"
 #include "gui/first_run_wizard.h"
 namespace {
@@ -370,19 +369,7 @@ int main(int argc, char *argv[])
     });
 
     QObject::connect(&tray, &TrayIcon::galleryRequested, [&]() {
-        WallpaperGallery gallery(playlist.items(), playlist.current());
-
-        QObject::connect(&gallery, &WallpaperGallery::wallpaperSelected, [&](const QString& path) {
-            keepWallpaper(path, false);
-            gallery.accept();
-        });
-
-        QObject::connect(&gallery, &WallpaperGallery::playlistModified, [&](const QStringList& paths) {
-            playlist.setItems(paths);
-            playlist.saveToSettings(settings);
-        });
-
-        gallery.exec();
+        emit tray.settingsRequested();
     });
 
     QPointer<DashboardWindow> dashboard;
@@ -395,6 +382,10 @@ int main(int argc, char *argv[])
 
         dashboard = new DashboardWindow(&settings);
         dashboard->setAttribute(Qt::WA_DeleteOnClose);
+
+        QObject::connect(dashboard.data(), &DashboardWindow::wallpaperSelected, [&](const QString& path) {
+            keepWallpaper(path, false);
+        });
 
         QObject::connect(dashboard.data(), &DashboardWindow::settingsChanged, [&]() {
             // Re-read settings

@@ -53,7 +53,6 @@ add_executable(wpe-lite
     src/gui/tray_icon.h
     src/gui/dashboard_window.h
     src/gui/dashboard_window.cpp
-    src/gui/wallpaper_gallery.h
 )
 
 target_sources(wpe-lite PRIVATE

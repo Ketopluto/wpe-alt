@@ -3,6 +3,13 @@
 #include <QStyle>
 #include <QGroupBox>
 #include <QScrollArea>
+#include <QPainter>
+#include <QLinearGradient>
+#include <QStandardPaths>
+#include <QDir>
+#include <QFileDialog>
+#include <QImageReader>
+#include <QFileInfo>
 
 DashboardWindow::DashboardWindow(QSettings* settings, QWidget* parent)
     : QMainWindow(parent), m_settings(settings) {
@@ -10,7 +17,9 @@ DashboardWindow::DashboardWindow(QSettings* settings, QWidget* parent)
     setMinimumSize(800, 500);
 
     setupUi();
+    generatePrebuiltWallpapers();
     loadSettings();
+    loadGalleryItems();
     applyTheme();
 }
 
@@ -78,14 +87,30 @@ QWidget* DashboardWindow::createGalleryPage() {
     auto* layout = new QVBoxLayout(page);
     layout->setContentsMargins(30, 30, 30, 30);
     
+    auto* titleRow = new QHBoxLayout();
     auto* title = new QLabel("Wallpaper Gallery", page);
     title->setProperty("heading", true);
-    layout->addWidget(title);
+    titleRow->addWidget(title);
+    titleRow->addStretch();
+    
+    auto* browseBtn = new QPushButton("Browse...", page);
+    connect(browseBtn, &QPushButton::clicked, this, &DashboardWindow::onBrowseWallpaper);
+    titleRow->addWidget(browseBtn);
+    layout->addLayout(titleRow);
 
-    auto* placeholder = new QLabel("(Gallery coming in Phase 5)", page);
-    placeholder->setAlignment(Qt::AlignCenter);
-    layout->addWidget(placeholder, 1);
+    m_galleryList = new QListWidget(page);
+    m_galleryList->setViewMode(QListView::IconMode);
+    m_galleryList->setResizeMode(QListView::Adjust);
+    m_galleryList->setSpacing(15);
+    m_galleryList->setIconSize(QSize(240, 135));
+    m_galleryList->setMovement(QListView::Static);
+    
+    connect(m_galleryList, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+        QString path = item->data(Qt::UserRole).toString();
+        emit wallpaperSelected(path);
+    });
 
+    layout->addWidget(m_galleryList, 1);
     return page;
 }
 
@@ -273,6 +298,72 @@ void DashboardWindow::applySettings() {
 
     m_settings->sync();
     emit settingsChanged();
+}
+
+void DashboardWindow::onBrowseWallpaper() {
+    const QString filter =
+        "Media Files (*.mp4 *.mkv *.webm *.avi *.mov *.wmv *.flv *.m4v *.ts *.mpeg *.mpg "
+        "*.jpg *.jpeg *.png *.bmp *.gif *.webp *.apng);;"
+        "All Files (*.*)";
+
+    QString defaultDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    const QString selected = QFileDialog::getOpenFileName(this, "Choose Wallpaper Media", defaultDir, filter);
+
+    if (selected.isEmpty()) return;
+    
+    QString absolute = QFileInfo(selected).absoluteFilePath();
+    emit wallpaperSelected(absolute);
+}
+
+void DashboardWindow::generatePrebuiltWallpapers() {
+    QString wpDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/wallpapers";
+    QDir dir(wpDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    auto generateGradient = [&](const QString& name, QColor c1, QColor c2) {
+        QString path = dir.filePath(name);
+        if (QFile::exists(path)) return;
+
+        QImage img(1920, 1080, QImage::Format_RGB32);
+        QPainter p(&img);
+        QLinearGradient grad(0, 0, 1920, 1080);
+        grad.setColorAt(0, c1);
+        grad.setColorAt(1, c2);
+        p.fillRect(img.rect(), grad);
+        img.save(path, "JPEG", 90);
+    };
+
+    generateGradient("Neon Synthwave.jpg", QColor("#2a0845"), QColor("#6441A5"));
+    generateGradient("Deep Ocean.jpg", QColor("#0f2027"), QColor("#203a43"));
+    generateGradient("Forest Canopy.jpg", QColor("#134E5E"), QColor("#71B280"));
+}
+
+void DashboardWindow::loadGalleryItems() {
+    m_galleryList->clear();
+    QString wpDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/wallpapers";
+    QDir dir(wpDir);
+    if (!dir.exists()) return;
+
+    QStringList filters = {"*.jpg", "*.png", "*.jpeg", "*.mp4", "*.gif"};
+    QFileInfoList files = dir.entryInfoList(filters, QDir::Files);
+
+    for (const QFileInfo& fi : files) {
+        QIcon icon;
+        if (fi.suffix().toLower() == "mp4") {
+            // For videos, just use a generic icon for now
+            icon = QIcon::fromTheme("video-x-generic");
+        } else {
+            QImage img;
+            img.load(fi.absoluteFilePath());
+            icon = QIcon(QPixmap::fromImage(img.scaled(240, 135, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation)));
+        }
+
+        auto* item = new QListWidgetItem(icon, fi.baseName());
+        item->setData(Qt::UserRole, fi.absoluteFilePath());
+        m_galleryList->addItem(item);
+    }
 }
 
 void DashboardWindow::applyTheme() {

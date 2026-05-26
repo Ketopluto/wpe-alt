@@ -21,14 +21,18 @@ public:
 
 signals:
     void settingsChanged();
+    void wallpaperSelected(const QString& path);
 
 private slots:
     void applySettings();
+    void onBrowseWallpaper();
 
 private:
     void setupUi();
     void loadSettings();
     void applyTheme();
+    void generatePrebuiltWallpapers();
+    void loadGalleryItems();
 
     QWidget* createGalleryPage();
     QWidget* createDisplaysPage();
@@ -40,6 +44,9 @@ private:
 
     QListWidget* m_sidebar;
     QStackedWidget* m_stack;
+
+    // Gallery
+    QListWidget* m_galleryList;
 
     // UI Controls
     QSpinBox* m_fpsSpinBox;
