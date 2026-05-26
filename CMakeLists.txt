@@ -51,7 +51,8 @@ add_executable(wpe-lite
     src/renderers/video_renderer.cpp
     src/renderers/gif_renderer.h
     src/gui/tray_icon.h
-    src/gui/settings_dialog.h
+    src/gui/dashboard_window.h
+    src/gui/dashboard_window.cpp
     src/gui/wallpaper_gallery.h
 )
 

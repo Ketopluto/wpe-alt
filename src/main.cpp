@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QRegularExpression>
 #include <QStyle>
+#include <QPointer>
 #include "core/wallpaper_engine.h"
 #include "core/playlist.h"
 #include "renderers/color_renderer.h"
@@ -20,7 +21,7 @@
 #include "renderers/video_renderer.h"
 #include "renderers/gif_renderer.h"
 #include "gui/tray_icon.h"
-#include "gui/settings_dialog.h"
+#include "gui/dashboard_window.h"
 #include "gui/wallpaper_gallery.h"
 #include "platform/system_integration.h"
 #include "gui/first_run_wizard.h"
@@ -384,10 +385,18 @@ int main(int argc, char *argv[])
         gallery.exec();
     });
 
+    QPointer<DashboardWindow> dashboard;
     QObject::connect(&tray, &TrayIcon::settingsRequested, [&]() {
-        SettingsDialog dlg(&settings);
+        if (dashboard) {
+            dashboard->raise();
+            dashboard->activateWindow();
+            return;
+        }
 
-        QObject::connect(&dlg, &SettingsDialog::settingsChanged, [&]() {
+        dashboard = new DashboardWindow(&settings);
+        dashboard->setAttribute(Qt::WA_DeleteOnClose);
+
+        QObject::connect(dashboard.data(), &DashboardWindow::settingsChanged, [&]() {
             // Re-read settings
             QString newMmMode = settings.value("engine/multi_monitor_mode", "span").toString();
             if (newMmMode != (engines.size() == 1 ? "span" : "per_monitor")) {
@@ -434,7 +443,7 @@ int main(int argc, char *argv[])
             tray.setVolumeState(static_cast<int>(volume * 100));
         });
 
-        dlg.exec();
+        dashboard->show();
     });
 
     // System pause
