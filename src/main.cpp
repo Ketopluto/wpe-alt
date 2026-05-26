@@ -208,16 +208,38 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "[DBG] Playlist ready, %d items\n", playlist.count()); fflush(stderr);
 
-    // Engine
-    fprintf(stderr, "[DBG] Creating WallpaperEngine...\n"); fflush(stderr);
-    WallpaperEngine engine;
-    engine.setTargetFps(settings.value("engine/fps", 30).toInt());
+    // Engines
+    fprintf(stderr, "[DBG] Creating WallpaperEngines...\n"); fflush(stderr);
+    QList<WallpaperEngine*> engines;
+
+    auto createEngines = [&]() {
+        for (auto* e : engines) { e->stop(); e->deleteLater(); }
+        engines.clear();
+
+        QString mmMode = settings.value("engine/multi_monitor_mode", "span").toString();
+        if (mmMode == "span") {
+            engines.append(new WallpaperEngine(nullptr, &app));
+        } else {
+            for (auto* screen : QGuiApplication::screens()) {
+                engines.append(new WallpaperEngine(screen, &app));
+            }
+        }
+
+        int targetFps = settings.value("engine/fps", 30).toInt();
+        for (auto* e : engines) {
+            e->setTargetFps(targetFps);
+        }
+    };
+
+    createEngines();
 
     auto applyMedia = [&](const QString& mediaPath) {
-        WallpaperRenderer* renderer = createRendererForPath(mediaPath, fillMode, &engine);
-        renderer->setVolume(volume);
-        renderer->setMuted(muted);
-        engine.setRenderer(renderer);
+        for (auto* engine : engines) {
+            WallpaperRenderer* renderer = createRendererForPath(mediaPath, fillMode, engine);
+            renderer->setVolume(volume);
+            renderer->setMuted(muted);
+            engine->setRenderer(renderer);
+        }
     };
 
     // Set initial wallpaper
@@ -233,16 +255,18 @@ int main(int argc, char *argv[])
     bool userPaused = false;
 
     auto applyMediaAndRefresh = [&](const QString& mediaPath) {
-        const bool wasRunning = engine.isRunning();
+        bool wasRunning = false;
+        if (!engines.isEmpty()) wasRunning = engines.first()->isRunning();
+        
         if (wasRunning) {
             sysIntegration.stopMonitoring();
-            engine.stop();
+            for (auto* e : engines) e->stop();
         }
 
         applyMedia(mediaPath);
 
         if (wasRunning) {
-            engine.start();
+            for (auto* e : engines) e->start();
             sysIntegration.startMonitoring();
         }
     };
@@ -284,17 +308,17 @@ int main(int argc, char *argv[])
 
     QObject::connect(&tray, &TrayIcon::enableToggled, [&](bool enabled) {
         if (enabled) {
-            engine.start();
+            for (auto* e : engines) e->start();
             sysIntegration.startMonitoring();
         } else {
             sysIntegration.stopMonitoring();
-            engine.stop();
+            for (auto* e : engines) e->stop();
         }
     });
 
     QObject::connect(&tray, &TrayIcon::pauseToggled, [&](bool paused) {
         userPaused = paused;
-        engine.setPaused(paused || sysIntegration.isPausedBySystem());
+        for (auto* e : engines) e->setPaused(paused || sysIntegration.isPausedBySystem());
     });
 
     QObject::connect(&tray, &TrayIcon::muteToggled, [&](bool m) {
@@ -365,7 +389,24 @@ int main(int argc, char *argv[])
 
         QObject::connect(&dlg, &SettingsDialog::settingsChanged, [&]() {
             // Re-read settings
-            engine.setTargetFps(settings.value("engine/fps", 30).toInt());
+            QString newMmMode = settings.value("engine/multi_monitor_mode", "span").toString();
+            if (newMmMode != (engines.size() == 1 ? "span" : "per_monitor")) {
+                bool wasRunning = !engines.isEmpty() && engines.first()->isRunning();
+                if (wasRunning) {
+                    sysIntegration.stopMonitoring();
+                    for (auto* e : engines) e->stop();
+                }
+                createEngines();
+                applyMedia(playlist.current());
+                if (wasRunning) {
+                    for (auto* e : engines) e->start();
+                    sysIntegration.startMonitoring();
+                }
+            } else {
+                int targetFps = settings.value("engine/fps", 30).toInt();
+                for (auto* e : engines) e->setTargetFps(targetFps);
+            }
+
             fillMode = parseFillMode(settings.value("engine/fill_mode", "fill").toString());
             volume = settings.value("audio/volume", 100).toInt() / 100.0f;
             muted = settings.value("audio/mute", false).toBool();
@@ -398,7 +439,7 @@ int main(int argc, char *argv[])
 
     // System pause
     QObject::connect(&sysIntegration, &SystemIntegration::systemPauseChanged, [&](bool sysPaused) {
-        engine.setPaused(userPaused || sysPaused);
+        for (auto* e : engines) e->setPaused(userPaused || sysPaused);
     });
 
     // Note: Do not call sysIntegration.setAutoStart() on startup to avoid opening registry keys
@@ -409,7 +450,7 @@ int main(int argc, char *argv[])
     tray.setVolumeState(static_cast<int>(volume * 100));
     tray.show();
 
-    engine.start();
+    for (auto* e : engines) e->start();
     sysIntegration.startMonitoring();
 
     if (!playlist.current().isEmpty()) {

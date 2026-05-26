@@ -10,7 +10,7 @@
 class WallpaperEngine : public QObject {
     Q_OBJECT
 public:
-    explicit WallpaperEngine(QObject* parent = nullptr);
+    explicit WallpaperEngine(QScreen* screen = nullptr, QObject* parent = nullptr);
     ~WallpaperEngine();
 
     void start();
@@ -27,6 +27,7 @@ private:
 
     QWindow* m_window;
     std::unique_ptr<WallpaperRenderer> m_renderer;
+    QScreen* m_targetScreen;
     PlatformUtils* m_platform;
     QTimer* m_timer;
     int m_targetFps;

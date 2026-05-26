@@ -67,6 +67,11 @@ private:
         m_fillModeCombo->addItem("Center (no scaling)", "center");
         engineLayout->addRow("Fill Mode:", m_fillModeCombo);
 
+        m_multiMonitorCombo = new QComboBox(engineGroup);
+        m_multiMonitorCombo->addItem("Span across all monitors", "span");
+        m_multiMonitorCombo->addItem("Duplicate on each monitor", "per_monitor");
+        engineLayout->addRow("Multi-Monitor:", m_multiMonitorCombo);
+
         layout->addWidget(engineGroup);
 
         auto* startupGroup = new QGroupBox("Startup", widget);
@@ -189,6 +194,10 @@ private:
         int fillIdx = m_fillModeCombo->findData(fillMode);
         m_fillModeCombo->setCurrentIndex(fillIdx >= 0 ? fillIdx : 0);
 
+        QString mmMode = m_settings->value("engine/multi_monitor_mode", "span").toString().toLower();
+        int mmIdx = m_multiMonitorCombo->findData(mmMode);
+        m_multiMonitorCombo->setCurrentIndex(mmIdx >= 0 ? mmIdx : 0);
+
         m_autoStartCheck->setChecked(m_settings->value("engine/auto_start", false).toBool());
 
         QString plMode = m_settings->value("playlist/mode", "sequential").toString().toLower();
@@ -207,6 +216,7 @@ private:
     void applyAndAccept() {
         m_settings->setValue("engine/fps", m_fpsSpinBox->value());
         m_settings->setValue("engine/fill_mode", m_fillModeCombo->currentData().toString());
+        m_settings->setValue("engine/multi_monitor_mode", m_multiMonitorCombo->currentData().toString());
         m_settings->setValue("engine/auto_start", m_autoStartCheck->isChecked());
 
         m_settings->setValue("playlist/mode", m_playlistModeCombo->currentData().toString());
@@ -228,6 +238,7 @@ private:
     // General
     QSpinBox* m_fpsSpinBox = nullptr;
     QComboBox* m_fillModeCombo = nullptr;
+    QComboBox* m_multiMonitorCombo = nullptr;
     QCheckBox* m_autoStartCheck = nullptr;
 
     // Playback
