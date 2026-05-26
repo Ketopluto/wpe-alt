@@ -23,7 +23,7 @@
 #include "gui/settings_dialog.h"
 #include "gui/wallpaper_gallery.h"
 #include "platform/system_integration.h"
-
+#include "gui/first_run_wizard.h"
 namespace {
 
 QString toAbsoluteMediaPath(const QString& input, const QDir& baseDir) {
@@ -174,6 +174,14 @@ int main(int argc, char *argv[])
     const QDir baseDir = iniInfo.absoluteDir();
 
     fprintf(stderr, "[DBG] Config loaded from: %s\n", qPrintable(iniPath)); fflush(stderr);
+
+    // First Run Wizard
+    if (!settings.value("first_run_completed", false).toBool()) {
+        FirstRunWizard wizard;
+        wizard.exec();
+        settings.setValue("first_run_completed", true);
+        settings.sync();
+    }
 
     // Engine settings
     FillMode fillMode = parseFillMode(settings.value("engine/fill_mode", "fill").toString());
