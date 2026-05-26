@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     fprintf(stderr, "[DBG] QApplication created\n"); fflush(stderr);
 
-    app.setApplicationName("WPE-Alt");
+    app.setApplicationName("Wallpaper Studio");
     app.setApplicationVersion("1.0.0");
     app.setQuitOnLastWindowClosed(false);
     const QIcon appIcon = loadAppIcon();
@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
     // Single instance check
     if (!SystemIntegration::tryAcquireSingleInstance()) {
         fprintf(stderr, "[DBG] Single instance check FAILED — exiting\n"); fflush(stderr);
-        QMessageBox::information(nullptr, "WPE-Alt",
-            "WPE-Alt is already running. Check the system tray.");
+        QMessageBox::information(nullptr, "Wallpaper Studio",
+            "Wallpaper Studio is already running. Check the system tray.");
         return 0;
     }
     fprintf(stderr, "[DBG] Single instance OK\n"); fflush(stderr);
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
 
     // Command line
     QCommandLineParser parser;
-    parser.setApplicationDescription("WPE-Alt — Open-source Wallpaper Engine alternative");
+    parser.setApplicationDescription("Wallpaper Studio — Open-source Wallpaper Engine alternative");
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addOption({{"c", "config"}, "Path to wallpaper.ini", "path"});
@@ -267,8 +267,8 @@ int main(int argc, char *argv[])
 
         playlist.saveToSettings(settings);
         applyMediaAndRefresh(absolute);
-        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(absolute).fileName()));
-        tray.showMessage("WPE-Alt",
+        tray.setToolTip(QString("Wallpaper Studio\n%1").arg(QFileInfo(absolute).fileName()));
+        tray.showMessage("Wallpaper Studio",
                          QString("Wallpaper applied: %1").arg(QFileInfo(absolute).fileName()),
                          QSystemTrayIcon::Information,
                          2500);
@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
 
     QObject::connect(&playlist, &Playlist::currentChanged, [&](const QString& path) {
         applyMediaAndRefresh(path);
-        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(path).fileName()));
+        tray.setToolTip(QString("Wallpaper Studio\n%1").arg(QFileInfo(path).fileName()));
     });
 
     QObject::connect(&tray, &TrayIcon::mediaSelectionRequested, [&]() {
@@ -405,7 +405,7 @@ int main(int argc, char *argv[])
     sysIntegration.startMonitoring();
 
     if (!playlist.current().isEmpty()) {
-        tray.setToolTip(QString("WPE-Alt\n%1").arg(QFileInfo(playlist.current()).fileName()));
+        tray.setToolTip(QString("Wallpaper Studio\n%1").arg(QFileInfo(playlist.current()).fileName()));
     }
 
     return app.exec();

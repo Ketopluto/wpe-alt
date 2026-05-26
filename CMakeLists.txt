@@ -68,7 +68,7 @@ target_link_libraries(wpe-lite PRIVATE
 
 if(WIN32)
     set_target_properties(wpe-lite PROPERTIES
-        OUTPUT_NAME "WPE-Alt"
+        OUTPUT_NAME "WallpaperStudio"
         WIN32_EXECUTABLE TRUE
     )
 
@@ -92,7 +92,7 @@ if(WIN32)
             "-DQT_DEPLOY_LIB_DIR=."
             "-DQT_DEPLOY_PLUGINS_DIR=."
             -P "${wpe_alt_deploy_script}"
-        COMMENT "Deploying Qt runtime dependencies for WPE-Alt"
+        COMMENT "Deploying Qt runtime dependencies for Wallpaper Studio"
         VERBATIM
     )
 endif()

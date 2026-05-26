@@ -40,7 +40,7 @@ public:
         if (result != ERROR_SUCCESS) return false;
 
         DWORD type = 0;
-        result = RegQueryValueExW(key, L"WPE-Alt", nullptr, &type, nullptr, nullptr);
+        result = RegQueryValueExW(key, L"Wallpaper-Studio", nullptr, &type, nullptr, nullptr);
         RegCloseKey(key);
         return result == ERROR_SUCCESS;
 #else
@@ -61,11 +61,11 @@ public:
             GetModuleFileNameW(nullptr, path, MAX_PATH);
             QString exePath = QString::fromWCharArray(path);
             std::wstring value = exePath.toStdWString();
-            RegSetValueExW(key, L"WPE-Alt", 0, REG_SZ,
+            RegSetValueExW(key, L"Wallpaper-Studio", 0, REG_SZ,
                 reinterpret_cast<const BYTE*>(value.c_str()),
                 static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
         } else {
-            RegDeleteValueW(key, L"WPE-Alt");
+            RegDeleteValueW(key, L"Wallpaper-Studio");
         }
         RegCloseKey(key);
 #else
@@ -76,7 +76,7 @@ public:
     // --- Single instance ---
     static bool tryAcquireSingleInstance() {
 #ifdef Q_OS_WIN
-        HANDLE mutex = CreateMutexW(nullptr, FALSE, L"Local\\WPE-Alt-SingleInstance");
+        HANDLE mutex = CreateMutexW(nullptr, FALSE, L"Local\\Wallpaper-Studio-SingleInstance");
         if (mutex == nullptr) return false;
         if (GetLastError() == ERROR_ALREADY_EXISTS) {
             CloseHandle(mutex);

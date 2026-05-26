@@ -22,7 +22,7 @@ class SettingsDialog : public QDialog {
 public:
     explicit SettingsDialog(QSettings* settings, QWidget* parent = nullptr)
         : QDialog(parent), m_settings(settings) {
-        setWindowTitle("WPE-Alt Settings");
+        setWindowTitle("Wallpaper Studio Settings");
         setMinimumSize(480, 420);
         setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
@@ -150,7 +150,7 @@ private:
         auto* layout = new QVBoxLayout(widget);
         layout->setAlignment(Qt::AlignCenter);
 
-        auto* title = new QLabel("WPE-Alt", widget);
+        auto* title = new QLabel("Wallpaper Studio", widget);
         QFont titleFont = title->font();
         titleFont.setPointSize(20);
         titleFont.setBold(true);
