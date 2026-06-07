@@ -19,6 +19,7 @@
 #include "renderers/color_renderer.h"
 #include "renderers/image_renderer.h"
 #include "renderers/video_renderer.h"
+#include "renderers/gpu_video_renderer.h"
 #include "renderers/gif_renderer.h"
 #include "gui/tray_icon.h"
 #include "gui/dashboard_window.h"
@@ -88,6 +89,14 @@ WallpaperRenderer* createRendererForPath(const QString& path, FillMode fillMode,
         return r;
     }
 
+    // Prefer GPU-accelerated renderer for video files
+    if (GpuVideoRenderer::canOpen(path)) {
+        auto* r = new GpuVideoRenderer(path, parent);
+        r->setFillMode(fillMode);
+        return r;
+    }
+
+    // Fallback to FFmpeg software renderer
     if (VideoRenderer::canOpen(path)) {
         auto* r = new VideoRenderer(path, parent);
         r->setFillMode(fillMode);
