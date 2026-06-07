@@ -17,7 +17,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 QUIET COMPONENTS Core Gui Widgets)
+find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets)
 if(NOT Qt6_FOUND)
     if(WIN32)
         message(FATAL_ERROR "Qt6 not found. Install dependencies with: vcpkg install qtbase:x64-windows")
@@ -50,6 +50,8 @@ add_executable(wpe-lite
     src/renderers/video_renderer.h
     src/renderers/video_renderer.cpp
     src/renderers/gif_renderer.h
+    src/renderers/gpu_video_renderer.h
+    src/renderers/gpu_video_renderer.cpp
     src/gui/tray_icon.h
     src/gui/first_run_wizard.h
     src/gui/dashboard_window.h
@@ -63,7 +65,7 @@ target_sources(wpe-lite PRIVATE
 target_include_directories(wpe-lite PRIVATE ${FFMPEG_INCLUDE_DIRS})
 
 target_link_libraries(wpe-lite PRIVATE 
-    Qt6::Core Qt6::Gui Qt6::Widgets
+    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Multimedia Qt6::MultimediaWidgets
     ${FFMPEG_LIBRARIES}
 )
 
