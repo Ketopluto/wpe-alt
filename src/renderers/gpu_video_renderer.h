@@ -8,6 +8,7 @@
 #include <QPainter>
 #include <QString>
 #include <QAudioOutput>
+#include <QMutex>
 #include <atomic>
 
 class GpuVideoRenderer : public WallpaperRenderer {
