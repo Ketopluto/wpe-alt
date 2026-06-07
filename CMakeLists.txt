@@ -17,7 +17,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets)
+find_package(Qt6 QUIET COMPONENTS Core Gui Widgets Multimedia)
 if(NOT Qt6_FOUND)
     if(WIN32)
         message(FATAL_ERROR "Qt6 not found. Install dependencies with: vcpkg install qtbase:x64-windows")
@@ -65,7 +65,7 @@ target_sources(wpe-lite PRIVATE
 target_include_directories(wpe-lite PRIVATE ${FFMPEG_INCLUDE_DIRS})
 
 target_link_libraries(wpe-lite PRIVATE 
-    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Multimedia Qt6::MultimediaWidgets
+    Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Multimedia
     ${FFMPEG_LIBRARIES}
 )
 
